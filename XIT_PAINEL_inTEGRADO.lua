@@ -1,5 +1,4 @@
-
--- Combined Panel + Functionality Script
+-- Combined Panel + Functionality Script (com Wall Hacker e UI de Armas)
 -- Integrates features from script.lua into the floating panel (base.lua) UI.
 -- Self-contained. No external dependencies. Paste into a LocalScript in StarterPlayerScripts or execute via executor.
 
@@ -10,6 +9,8 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPack = game:GetService("StarterPack")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -32,6 +33,10 @@ local FPSUnlockerEnabled = false
 -- For Visual tab
 local SlowMotionEnabled = false
 local PvPSkyEnabled = false
+
+-- Wall Hacker (noclip) adicional
+local NoclipEnabled = false
+local noclipConn = nil
 
 -- Keep originals to restore
 local OriginalAmbient = Lighting.Ambient
@@ -272,14 +277,11 @@ espColorBox.Font = Enum.Font.GothamBold
 espColorBox.TextSize = 13
 Instance.new("UICorner", espColorBox).CornerRadius = UDim.new(0,8)
 
--- ========== ESP BOX (INSERIR AQUI) ==========
--- Toggle e cor para Box ESP (colar após espColorBox já existente)
-
+-- ========== ESP BOX (ATUALIZADO) ==========
 local ESPBoxEnabled = false
 local ESPBoxTeamCheck = true
-local ESPBoxColor = HighlightColor -- inicial usa mesmo destaque
+local ESPBoxColor = HighlightColor -- inicial
 
--- UI: toggle e cor para box (colocar perto do espColorBox)
 local lblESPBox, btnESPBox = createToggle(frameESP, "Ativar ESP Box", 138)
 local lblESPBoxTeam, btnESPBoxTeam = createToggle(frameESP, "Checagem de time (Box)", 178)
 
@@ -303,26 +305,22 @@ boxColorBox.Font = Enum.Font.GothamBold
 boxColorBox.TextSize = 13
 Instance.new("UICorner", boxColorBox).CornerRadius = UDim.new(0,8)
 
--- tabela que guarda frames por jogador
 local espBoxes = {}
 
 local function CreateBoxForPlayer(player)
     if espBoxes[player] then return end
-    -- container
     local outer = Instance.new("Frame", drawContainer)
     outer.Name = "ESPBox_"..player.Name
     outer.BackgroundTransparency = 1
     outer.BorderSizePixel = 0
     outer.ZIndex = 60
 
-    -- border (outline)
     local outline = Instance.new("Frame", outer)
     outline.Name = "Outline"
     outline.AnchorPoint = Vector2.new(0.5, 0.5)
-    outline.BackgroundTransparency = 1 -- we'll simulate border with 4 lines
+    outline.BackgroundTransparency = 1
     outline.ZIndex = 61
 
-    -- four sides as Frames (top, left, right, bottom)
     local top = Instance.new("Frame", outline); top.Name = "Top"; top.AnchorPoint = Vector2.new(0,0)
     local left = Instance.new("Frame", outline); left.Name = "Left"; left.AnchorPoint = Vector2.new(0,0)
     local right = Instance.new("Frame", outline); right.Name = "Right"; right.AnchorPoint = Vector2.new(0,0)
@@ -335,7 +333,6 @@ local function CreateBoxForPlayer(player)
         part.ZIndex = 62
     end
 
-    -- name label
     local nameLabel = Instance.new("TextLabel", outline)
     nameLabel.Name = "Name"
     nameLabel.BackgroundTransparency = 1
@@ -360,67 +357,71 @@ local function RemoveBoxForPlayer(player)
     end
 end
 
--- Atualiza boxes: calcula projeção 3D->2D e define tamanho e posição do retângulo
+-- Atualiza boxes (mantém entradas mesmo se char ausente)
 local function UpdateESPBoxes()
     local cam = Camera
-    local screenSize = cam.ViewportSize
+    if not cam then return end
     for player, data in pairs(espBoxes) do
-        local char = player.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
-            RemoveBoxForPlayer(player)
+        if not data or not data.container then
+            espBoxes[player] = nil
         else
-            -- checagem de time
+            -- Sempre manter o texto atualizado (nome + estado)
+            local username = player.Name
+            local char = player.Character
+            local hrp = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso"))
+            -- apply team visibility rule
             if ESPBoxTeamCheck and player.Team == LocalPlayer.Team then
                 data.container.Visible = false
             else
                 data.container.Visible = ESPEnabled and ESPBoxEnabled
             end
 
-            if not data.container.Visible then
-                -- se invisível, skip
+            -- Se não deve estar visível, apenas atualizar label (por exemplo quando ESP desligado)
+            if not (ESPEnabled and ESPBoxEnabled and (not (ESPBoxTeamCheck and player.Team == LocalPlayer.Team))) then
+                -- atualizar nome/estado para manter sincronizado
+                data.nameLabel.Text = username .. (hrp and "" or " (morto)")
+                data.nameLabel.TextColor3 = ESPBoxColor
+                -- manter invisível e pular cálculo de projeção
+                data.container.Visible = false
             else
-                -- escolha pontos top & bottom: use Head e HumanoidRootPart (ou Torso)
-                local head = char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
-                local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
-                if not head or not root then
+                if not hrp then
+                    -- jogador respawnou ou morreu; esconder box mas manter label
+                    data.nameLabel.Text = username .. " (morto)"
                     data.container.Visible = false
                 else
-                    local topPos, topOn = cam:WorldToViewportPoint(head.Position + Vector3.new(0, 0.3, 0))
-                    local bottomPos, bottomOn = cam:WorldToViewportPoint(root.Position - Vector3.new(0, 1.0, 0))
-                    if not topOn or not bottomOn then
+                    -- calcular projeção mesmo que parte esteja parcialmente fora da tela
+                    local head = char:FindFirstChild("Head") or hrp
+                    local topPos, topOn = cam:WorldToViewportPoint(head.Position + Vector3.new(0,0.3,0))
+                    local bottomPos, bottomOn = cam:WorldToViewportPoint(hrp.Position - Vector3.new(0,1.0,0))
+                    -- se nenhum dos pontos estiverem onScreen, ainda atualizamos o nome (box invisível)
+                    if not topOn and not bottomOn then
                         data.container.Visible = false
+                        data.nameLabel.Text = username
+                        data.nameLabel.TextColor3 = ESPBoxColor
                     else
+                        -- exibir e posicionar
                         data.container.Visible = true
                         local top2 = Vector2.new(topPos.X, topPos.Y)
                         local bot2 = Vector2.new(bottomPos.X, bottomPos.Y)
-
                         local height = math.max(10, (bot2 - top2).Magnitude)
-                        local width = math.clamp(height * 0.45, 10, 400) -- proporção de width
-
+                        local width = math.clamp(height * 0.45, 10, 400)
                         local center = (top2 + bot2) / 2
-                        -- define container (usamos Position e Size para o 'outline' agrupado)
                         data.container.Position = UDim2.new(0, center.X - width/2, 0, center.Y - height/2)
                         data.container.Size = UDim2.new(0, width, 0, height)
 
-                        -- ajustar bordas (4 frames)
                         local borderThickness = math.max(1, math.floor(math.clamp(width,1,10) * 0.06))
-                        -- top
                         data.top.Position = UDim2.new(0, 0, 0, 0)
                         data.top.Size = UDim2.new(1, 0, 0, borderThickness)
-                        -- bottom
                         data.bottom.Position = UDim2.new(0, 0, 1, -borderThickness)
                         data.bottom.Size = UDim2.new(1, 0, 0, borderThickness)
-                        -- left
                         data.left.Position = UDim2.new(0, 0, 0, 0)
                         data.left.Size = UDim2.new(0, borderThickness, 1, 0)
-                        -- right
                         data.right.Position = UDim2.new(1, -borderThickness, 0, 0)
                         data.right.Size = UDim2.new(0, borderThickness, 1, 0)
 
-                        -- name label top center
                         data.nameLabel.Position = UDim2.new(0.5, 0, 0, -18)
                         data.nameLabel.Size = UDim2.new(0, 200, 0, 16)
-                        data.nameLabel.Text = player.Name
+                        data.nameLabel.Text = username
                         data.nameLabel.TextColor3 = ESPBoxColor
                         data.nameLabel.TextStrokeTransparency = 0.8
                         data.nameLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -432,32 +433,56 @@ local function UpdateESPBoxes()
     end
 end
 
--- Manter criação/remoção quando jogadores entrarem/saírem ou reaparecerem
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function()
-        if ESPBoxEnabled then
-            CreateBoxForPlayer(p)
-        end
-    end)
-end)
-Players.PlayerRemoving:Connect(function(p)
-    RemoveBoxForPlayer(p)
-end)
+-- Hooks: criar entradas para todos os players já conectados e escutar CharacterAdded
+for _, pl in ipairs(Players:GetPlayers()) do
+    if pl ~= LocalPlayer then
+        CreateBoxForPlayer(pl)
+        -- quando o personagem aparecer, reaplicar dados (não recriar duplicado)
+        pl.CharacterAdded:Connect(function()
+            -- small wait to allow parts to replicate
+            repeat task.wait() until pl.Character and (pl.Character:FindFirstChild("HumanoidRootPart") or pl.Character:FindFirstChild("Torso") or pl.Character:FindFirstChild("UpperTorso")) or not pl.Parent
+            -- garantir que o box exista
+            CreateBoxForPlayer(pl)
+        end)
+        -- quando trocar team, forçar redraw (se teleportFrame visível ou ESP ligado)
+        pl:GetPropertyChangedSignal("Team"):Connect(function()
+            -- não destrói, apenas atualiza cor/vis
+            if espBoxes[pl] and espBoxes[pl].nameLabel then
+                espBoxes[pl].nameLabel.Text = pl.Name
+            end
+        end)
+    end
+end
 
--- Toggle handlers (UI buttons)
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LocalPlayer then
+        CreateBoxForPlayer(p)
+        p.CharacterAdded:Connect(function()
+            repeat task.wait() until p.Character and (p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("UpperTorso"))
+            CreateBoxForPlayer(p)
+        end)
+        p:GetPropertyChangedSignal("Team"):Connect(function()
+            if espBoxes[p] and espBoxes[p].nameLabel then
+                espBoxes[p].nameLabel.Text = p.Name
+            end
+        end)
+    end
+end)
+Players.PlayerRemoving:Connect(function(p) RemoveBoxForPlayer(p) end)
+
+-- Toggle handler
 btnESPBox.MouseButton1Click:Connect(function()
     ESPBoxEnabled = not ESPBoxEnabled
     if ESPBoxEnabled then
         btnESPBox.Text = "ON"; btnESPBox.BackgroundColor3 = Color3.fromRGB(200,50,50)
-        -- criar para todos os players existentes
         for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= LocalPlayer then
-                CreateBoxForPlayer(pl)
-            end
+            if pl ~= LocalPlayer then CreateBoxForPlayer(pl) end
         end
     else
         btnESPBox.Text = "OFF"; btnESPBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        for p,_ in pairs(espBoxes) do RemoveBoxForPlayer(p) end
+        for p,_ in pairs(espBoxes) do
+            if espBoxes[p] and espBoxes[p].container then espBoxes[p].container.Visible = false end
+        end
     end
 end)
 
@@ -475,7 +500,6 @@ boxColorBox.FocusLost:Connect(function(enter)
         local gg = math.clamp(tonumber(g)/255,0,1)
         local bb = math.clamp(tonumber(b)/255,0,1)
         ESPBoxColor = Color3.new(rr,gg,bb)
-        -- atualizar cor dos boxes existentes
         for _, data in pairs(espBoxes) do
             pcall(function()
                 data.top.BackgroundColor3 = ESPBoxColor
@@ -490,18 +514,480 @@ boxColorBox.FocusLost:Connect(function(enter)
     end
 end)
 
--- hook no RenderStepped para atualizar as posições
+-- Bind render step (mantém o mesmo nome mas garante update contínuo)
 RunService:BindToRenderStep("ESPBoxUpdater", Enum.RenderPriority.Camera.Value + 1, function()
     if ESPBoxEnabled and ESPEnabled then
         UpdateESPBoxes()
     else
-        -- esconder todos quando desligado
         for p,data in pairs(espBoxes) do
             if data and data.container then data.container.Visible = false end
         end
     end
 end)
 -- ========== FIM ESP BOX ==========
+
+-- =======================
+-- Teleport to Enemy UI + Funcionalidade (MELHORADO)
+-- =======================
+local lblTeleport = Instance.new("TextLabel", frameESP)
+lblTeleport.Size = UDim2.new(1, -24, 0, 20)
+lblTeleport.Position = UDim2.new(0, 12, 0, 252)
+lblTeleport.BackgroundTransparency = 1
+lblTeleport.Text = "Teleportar para Inimigos"
+lblTeleport.TextXAlignment = Enum.TextXAlignment.Left
+lblTeleport.Font = Enum.Font.Gotham
+lblTeleport.TextSize = 14
+lblTeleport.TextColor3 = Color3.fromRGB(220,220,220)
+
+local btnOpenTeleport = Instance.new("TextButton", frameESP)
+btnOpenTeleport.Size = UDim2.new(0, 110, 0, 32)
+btnOpenTeleport.Position = UDim2.new(1, -126, 0, 246)
+btnOpenTeleport.BackgroundColor3 = Color3.fromRGB(60,60,60)
+btnOpenTeleport.TextColor3 = Color3.fromRGB(255,255,255)
+btnOpenTeleport.Text = "Abrir"
+btnOpenTeleport.Font = Enum.Font.GothamBold
+btnOpenTeleport.TextSize = 13
+Instance.new("UICorner", btnOpenTeleport).CornerRadius = UDim.new(0,8)
+
+local teleportFrame = Instance.new("Frame", screenGui)
+teleportFrame.Name = "TeleportFrame"
+teleportFrame.Size = UDim2.new(0, 220, 0, 260)
+teleportFrame.Position = UDim2.new(0, 400, 0, 20)
+teleportFrame.BackgroundColor3 = Color3.fromRGB(18,18,18)
+teleportFrame.BorderSizePixel = 0
+teleportFrame.Visible = false
+Instance.new("UICorner", teleportFrame).CornerRadius = UDim.new(0,8)
+teleportFrame.ZIndex = 200
+
+local teleportTitle = Instance.new("TextLabel", teleportFrame)
+teleportTitle.Size = UDim2.new(1, -12, 0, 28)
+teleportTitle.Position = UDim2.new(0, 6, 0, 6)
+teleportTitle.BackgroundTransparency = 1
+teleportTitle.Text = "Teleport — Inimigos"
+teleportTitle.Font = Enum.Font.GothamBold
+teleportTitle.TextSize = 14
+teleportTitle.TextColor3 = Color3.fromRGB(235,235,235)
+teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeBtn = Instance.new("TextButton", teleportFrame)
+closeBtn.Size = UDim2.new(0, 52, 0, 24)
+closeBtn.Position = UDim2.new(1, -58, 0, 6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.Text = "Fechar"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 12
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0,6)
+
+local scroll = Instance.new("ScrollingFrame", teleportFrame)
+scroll.Size = UDim2.new(1, -12, 1, -46)
+scroll.Position = UDim2.new(0, 6, 0, 38)
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 6
+scroll.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.ZIndex = 201
+
+local uiList = Instance.new("UIListLayout", scroll)
+uiList.Padding = UDim.new(0,6)
+uiList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function ClearTeleportButtons()
+    for _, child in ipairs(scroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+end
+
+local function ShowTempMsg(parent, text, time)
+    local tmp = Instance.new("TextLabel", parent)
+    tmp.Size = UDim2.new(1, -12, 0, 26)
+    tmp.Position = UDim2.new(0,6,1,-32)
+    tmp.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    tmp.TextColor3 = Color3.fromRGB(255,200,200)
+    tmp.Font = Enum.Font.GothamBold
+    tmp.TextSize = 12
+    tmp.Text = text
+    Instance.new("UICorner", tmp).CornerRadius = UDim.new(0,6)
+    delay(time or 2, function() pcall(function() tmp:Destroy() end) end)
+end
+
+-- Teleport helper: tenta teleportar imediatamente; se HRP não existir, tenta por alguns instantes até achar
+local function TeleportToPlayer(pl)
+    -- safety: check
+    pcall(function()
+        if not pl or not pl.Parent then
+            ShowTempMsg(teleportFrame, "Alvo inválido", 2)
+            return
+        end
+        local myChar = LocalPlayer.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then
+            ShowTempMsg(teleportFrame, "Seu personagem não está pronto", 2)
+            return
+        end
+
+        local attempts = 0
+        local maxAttempts = 30 -- 30 * 0.1 = 3 segundos de tentativas
+        local found = false
+
+        spawn(function()
+            while attempts < maxAttempts and not found do
+                attempts = attempts + 1
+                local targetChar = pl.Character
+                local targetHRP = targetChar and (targetChar:FindFirstChild("HumanoidRootPart") or targetChar:FindFirstChild("UpperTorso") or targetChar:FindFirstChild("Torso"))
+                if targetHRP then
+                    found = true
+                    -- teleport seguro com offset
+                    local dest = targetHRP.CFrame + Vector3.new(0, 5, 0)
+                    pcall(function()
+                        myChar:WaitForChild("HumanoidRootPart").CFrame = dest
+                    end)
+                    ShowTempMsg(teleportFrame, "Teleportado para " .. pl.Name, 2)
+                    break
+                end
+                wait(0.1)
+            end
+
+            if not found then
+                -- última tentativa: se não encontrou, avisar e sugerir esperar aparecer (por streaming)
+                ShowTempMsg(teleportFrame, "Falha: alvo não replicado no cliente", 3)
+            end
+        end)
+    end)
+end
+
+local function PopulateTeleportList()
+    ClearTeleportButtons()
+    for _, pl in ipairs(Players:GetPlayers()) do
+        if pl ~= LocalPlayer then
+            if not ESPBoxTeamCheck or pl.Team ~= LocalPlayer.Team then
+                local btn = Instance.new("TextButton", scroll)
+                btn.Size = UDim2.new(1, -12, 0, 32)
+                btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+                btn.TextColor3 = Color3.fromRGB(235,235,235)
+                btn.Font = Enum.Font.GothamBold
+                btn.TextSize = 14
+                btn.Text = pl.Name
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+                btn.ZIndex = 202
+
+                -- cria tooltip com distancia (se possível)
+                local distLabel = Instance.new("TextLabel", btn)
+                distLabel.Size = UDim2.new(0, 56, 1, 0)
+                distLabel.Position = UDim2.new(1, -60, 0, 0)
+                distLabel.BackgroundTransparency = 1
+                distLabel.TextColor3 = Color3.fromRGB(200,200,200)
+                distLabel.Font = Enum.Font.Gotham
+                distLabel.TextSize = 12
+                distLabel.Text = ""
+
+                -- update distance em loop leve (apenas enquanto janela aberta)
+                local conn
+                conn = RunService.Heartbeat:Connect(function()
+                    if not teleportFrame.Visible then
+                        if conn then conn:Disconnect() end
+                        return
+                    end
+                    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local theirHRP = pl.Character and (pl.Character:FindFirstChild("HumanoidRootPart") or pl.Character:FindFirstChild("UpperTorso"))
+                    if myHRP and theirHRP then
+                        local d = (myHRP.Position - theirHRP.Position).Magnitude
+                        distLabel.Text = tostring(math.floor(d)) .. "m"
+                    else
+                        distLabel.Text = "--"
+                    end
+                end)
+
+                btn.MouseButton1Click:Connect(function()
+                    TeleportToPlayer(pl)
+                end)
+            end
+        end
+    end
+    delay(0.05, function()
+        local total = 0
+        for _, v in ipairs(scroll:GetChildren()) do
+            if v:IsA("TextButton") then
+                total = total + v.AbsoluteSize.Y + uiList.Padding.Offset
+            end
+        end
+        scroll.CanvasSize = UDim2.new(0,0,0, total)
+    end)
+end
+
+btnOpenTeleport.MouseButton1Click:Connect(function()
+    teleportFrame.Visible = not teleportFrame.Visible
+    if teleportFrame.Visible then
+        btnOpenTeleport.Text = "Fechar"
+        PopulateTeleportList()
+    else
+        btnOpenTeleport.Text = "Abrir"
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    teleportFrame.Visible = false
+    btnOpenTeleport.Text = "Abrir"
+end)
+
+Players.PlayerAdded:Connect(function() if teleportFrame.Visible then PopulateTeleportList() end end)
+Players.PlayerRemoving:Connect(function() if teleportFrame.Visible then PopulateTeleportList() end end)
+Players.PlayerAdded:Connect(function(p)
+    p:GetPropertyChangedSignal("Team"):Connect(function() if teleportFrame.Visible then PopulateTeleportList() end end)
+end)
+for _, pl in ipairs(Players:GetPlayers()) do
+    pl:GetPropertyChangedSignal("Team"):Connect(function() if teleportFrame.Visible then PopulateTeleportList() end end)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Escape then
+        if teleportFrame.Visible then
+            teleportFrame.Visible = false
+            btnOpenTeleport.Text = "Abrir"
+        end
+    end
+end)
+-- =======================
+-- FIM Teleport melhorado
+-- =======================
+
+-- =======================
+-- ARMS / WEAPONS UI (NOVO)
+-- =======================
+local lblWeapons = Instance.new("TextLabel", frameESP)
+lblWeapons.Size = UDim2.new(1, -24, 0, 20)
+lblWeapons.Position = UDim2.new(0, 12, 0, 290)
+lblWeapons.BackgroundTransparency = 1
+lblWeapons.Text = "Armas disponíveis"
+lblWeapons.TextXAlignment = Enum.TextXAlignment.Left
+lblWeapons.Font = Enum.Font.Gotham
+lblWeapons.TextSize = 14
+lblWeapons.TextColor3 = Color3.fromRGB(220,220,220)
+
+local btnOpenWeapons = Instance.new("TextButton", frameESP)
+btnOpenWeapons.Size = UDim2.new(0, 110, 0, 32)
+btnOpenWeapons.Position = UDim2.new(1, -126, 0, 284)
+btnOpenWeapons.BackgroundColor3 = Color3.fromRGB(60,60,60)
+btnOpenWeapons.TextColor3 = Color3.fromRGB(255,255,255)
+btnOpenWeapons.Text = "Abrir"
+btnOpenWeapons.Font = Enum.Font.GothamBold
+btnOpenWeapons.TextSize = 13
+Instance.new("UICorner", btnOpenWeapons).CornerRadius = UDim.new(0,8)
+
+-- === weaponsFrame (centralizado e arrastável) ===
+local weaponsFrame = Instance.new("Frame", screenGui)
+weaponsFrame.Name = "WeaponsFrame"
+weaponsFrame.Size = UDim2.new(0, 300, 0, 320)
+-- posição centralizada na tela (300x320 -> -150, -160 offsets)
+weaponsFrame.Position = UDim2.new(0.5, -150, 0.5, -160)
+weaponsFrame.AnchorPoint = Vector2.new(0,0)
+weaponsFrame.BackgroundColor3 = Color3.fromRGB(18,18,18)
+weaponsFrame.BorderSizePixel = 0
+weaponsFrame.Visible = false
+Instance.new("UICorner", weaponsFrame).CornerRadius = UDim.new(0,8)
+weaponsFrame.ZIndex = 210
+
+-- === Código para arrastar o weaponsFrame ===
+weaponsFrame.Active = true  -- necessário para receber Input
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    local newX = startPos.X.Offset + delta.X
+    local newY = startPos.Y.Offset + delta.Y
+    weaponsFrame.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+end
+
+weaponsFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = weaponsFrame.Position
+        -- desconectar quando soltar o botão/touch
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+weaponsFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        pcall(function() update(input) end)
+    end
+end)
+
+-- Título (mantive seu código já existente abaixo; não precisa alterar)
+local weaponsTitle = Instance.new("TextLabel", weaponsFrame)
+weaponsTitle.Size = UDim2.new(1, -12, 0, 28)
+weaponsTitle.Position = UDim2.new(0, 6, 0, 6)
+weaponsTitle.BackgroundTransparency = 1
+weaponsTitle.Text = "Armas — Lista"
+weaponsTitle.Font = Enum.Font.GothamBold
+weaponsTitle.TextSize = 14
+weaponsTitle.TextColor3 = Color3.fromRGB(235,235,235)
+weaponsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local weaponsClose = Instance.new("TextButton", weaponsFrame)
+weaponsClose.Size = UDim2.new(0, 52, 0, 24)
+weaponsClose.Position = UDim2.new(1, -58, 0, 6)
+weaponsClose.BackgroundColor3 = Color3.fromRGB(60,60,60)
+weaponsClose.TextColor3 = Color3.fromRGB(255,255,255)
+weaponsClose.Text = "Fechar"
+weaponsClose.Font = Enum.Font.GothamBold
+weaponsClose.TextSize = 12
+Instance.new("UICorner", weaponsClose).CornerRadius = UDim.new(0,6)
+
+local weaponsScroll = Instance.new("ScrollingFrame", weaponsFrame)
+weaponsScroll.Size = UDim2.new(1, -12, 1, -46)
+weaponsScroll.Position = UDim2.new(0, 6, 0, 38)
+weaponsScroll.CanvasSize = UDim2.new(0,0,0,0)
+weaponsScroll.BackgroundTransparency = 1
+weaponsScroll.ScrollBarThickness = 6
+weaponsScroll.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right
+weaponsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+weaponsScroll.ZIndex = 211
+
+local weaponsListLayout = Instance.new("UIListLayout", weaponsScroll)
+weaponsListLayout.Padding = UDim.new(0,6)
+weaponsListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+weaponsListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function ClearWeaponsButtons()
+    for _, child in ipairs(weaponsScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+end
+
+local function FindAvailableTools()
+    -- procura Tools em ReplicatedStorage, Workspace, StarterPack e Backpack
+    local results = {}
+    local seen = {}
+    local function tryAdd(inst, source)
+        if not inst or not inst.Parent then return end
+        if inst:IsA("Tool") then
+            local key = inst.Name .. ":" .. tostring(inst.ClassName) .. ":" .. source
+            if not seen[key] then
+                table.insert(results, {tool = inst, source = source})
+                seen[key] = true
+            end
+        end
+    end
+    for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
+        tryAdd(v, "ReplicatedStorage")
+    end
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        tryAdd(v, "Workspace")
+    end
+    for _, v in ipairs(StarterPack:GetDescendants()) do
+        tryAdd(v, "StarterPack")
+    end
+    -- também checar Backpack e Character tools
+    if LocalPlayer:FindFirstChild("Backpack") then
+        for _, v in ipairs(LocalPlayer.Backpack:GetChildren()) do
+            tryAdd(v, "Backpack")
+        end
+    end
+    if LocalPlayer.Character then
+        for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
+            tryAdd(v, "Character")
+        end
+    end
+    return results
+end
+
+local function GiveToolToPlayer(toolInstance)
+    if not toolInstance then return false, "Tool inválida" end
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then
+        return false, "Backpack não disponível"
+    end
+    local ok, clone = pcall(function() return toolInstance:Clone() end)
+    if not ok or not clone then
+        return false, "Falha ao clonar"
+    end
+    local success, err = pcall(function()
+        clone.Parent = backpack
+        -- tentar equipar se houver humanoid
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            pcall(function() LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):EquipTool(clone) end)
+        end
+    end)
+    if not success then
+        return false, "Erro ao colocar no Backpack: " .. tostring(err)
+    end
+    return true, "Arma adicionada"
+end
+
+local function PopulateWeaponsList()
+    ClearWeaponsButtons()
+    local tools = FindAvailableTools()
+    if #tools == 0 then
+        ShowTempMsg(weaponsFrame, "Nenhuma arma local encontrada", 3)
+        return
+    end
+    for _, entry in ipairs(tools) do
+        local t = entry.tool
+        local source = entry.source
+        local btn = Instance.new("TextButton", weaponsScroll)
+        btn.Size = UDim2.new(1, -12, 0, 32)
+        btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+        btn.TextColor3 = Color3.fromRGB(235,235,235)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 14
+        btn.Text = t.Name .. " (" .. source .. ")"
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+        btn.ZIndex = 212
+
+        btn.MouseButton1Click:Connect(function()
+            local ok, msg = GiveToolToPlayer(t)
+            if ok then
+                ShowTempMsg(weaponsFrame, "Pegou: " .. t.Name, 2)
+            else
+                ShowTempMsg(weaponsFrame, "Erro: " .. tostring(msg), 3)
+            end
+        end)
+    end
+
+    delay(0.05, function()
+        local total = 0
+        for _, v in ipairs(weaponsScroll:GetChildren()) do
+            if v:IsA("TextButton") then
+                total = total + v.AbsoluteSize.Y + weaponsListLayout.Padding.Offset
+            end
+        end
+        weaponsScroll.CanvasSize = UDim2.new(0,0,0, total)
+    end)
+end
+
+btnOpenWeapons.MouseButton1Click:Connect(function()
+    weaponsFrame.Visible = not weaponsFrame.Visible
+    if weaponsFrame.Visible then
+        btnOpenWeapons.Text = "Fechar"
+        PopulateWeaponsList()
+    else
+        btnOpenWeapons.Text = "Abrir"
+    end
+end)
+
+weaponsClose.MouseButton1Click:Connect(function()
+    weaponsFrame.Visible = false
+    btnOpenWeapons.Text = "Abrir"
+end)
+
+-- =======================
+-- FIM ARMS / WEAPONS UI
+-- =======================
 
 btnESPOn.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
@@ -614,7 +1100,7 @@ fovBox.FocusLost:Connect(function(enter)
 end)
 
 -- =======================
--- Visual TAB CONTROLS
+-- Visual TAB CONTROLS (inclui Noclip)
 -- =======================
 local lblFOVRainbow, btnFOVRainbow = createToggle(frameVisual, "FOV RGB", 18)
 local lblFOVColor = Instance.new("TextLabel", frameVisual)
@@ -642,6 +1128,9 @@ Instance.new("UICorner", fovColorBox).CornerRadius = UDim.new(0,8)
 
 local lblSlow, btnSlow = createToggle(frameVisual, "Slow Motion PvP", 98)
 local lblSkyMode, btnSkyMode = createToggle(frameVisual, "Modo Cielo PvP Suave", 138)
+
+-- Novo: Wall Hacker (Noclip)
+local lblNoclip, btnNoclip = createToggle(frameVisual, "Wall Hacker (Noclip)", 178)
 
 btnFOVRainbow.MouseButton1Click:Connect(function()
     FOVRainbow = not FOVRainbow
@@ -734,14 +1223,78 @@ btnSkyMode.MouseButton1Click:Connect(function()
     end
 end)
 
--- For Visual tab
+-- === Noclip (versão com restore seguro) ===
+local originalCollision = {}
+local noclipConn = nil
+
+local function enableNoclip()
+    -- salva estados e desativa colisão nas partes atuais
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    -- limpar tabela antiga (caso)
+    originalCollision = {}
+
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local ok, prev = pcall(function() return part.CanCollide end)
+            if ok then
+                originalCollision[part] = prev
+                pcall(function() part.CanCollide = false end)
+            end
+        end
+    end
+
+    -- manter desativado para novas partes usando Stepped
+    if not noclipConn then
+        noclipConn = RunService.Stepped:Connect(function()
+            local ch = LocalPlayer.Character
+            if not ch then return end
+            for _, part in ipairs(ch:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function() part.CanCollide = false end)
+                end
+            end
+        end)
+    end
+end
+
+local function disableNoclip()
+    -- desconecta o loop
+    if noclipConn then
+        noclipConn:Disconnect()
+        noclipConn = nil
+    end
+
+    -- restaura os estados originais (somente para partes que ainda existem)
+    for part, prev in pairs(originalCollision) do
+        if part and part.Parent then
+            pcall(function() part.CanCollide = prev end)
+        end
+    end
+
+    originalCollision = {}
+end
+
+btnNoclip.MouseButton1Click:Connect(function()
+    NoclipEnabled = not NoclipEnabled
+    if NoclipEnabled then
+        btnNoclip.Text = "ON"; btnNoclip.BackgroundColor3 = Color3.fromRGB(200,50,50)
+        enableNoclip()
+        ShowTempMsg(rootFrame, "Noclip ativado", 2)
+    else
+        btnNoclip.Text = "OFF"; btnNoclip.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        disableNoclip()
+        ShowTempMsg(rootFrame, "Noclip desativado", 2)
+    end
+end)
 
 -- WalkSpeed Control (aba Visual)
 local WalkSpeedValue = 16
 
 local lblSpeed = Instance.new("TextLabel", frameVisual)
 lblSpeed.Size = UDim2.new(1, -24, 0, 20)
-lblSpeed.Position = UDim2.new(0, 12, 0, 178)
+lblSpeed.Position = UDim2.new(0, 12, 0, 218)
 lblSpeed.BackgroundTransparency = 1
 lblSpeed.Text = "Velocidade (WalkSpeed)"
 lblSpeed.TextXAlignment = Enum.TextXAlignment.Left
@@ -751,7 +1304,7 @@ lblSpeed.TextColor3 = Color3.fromRGB(220,220,220)
 
 local speedBox = Instance.new("TextBox", frameVisual)
 speedBox.Size = UDim2.new(0, 110, 0, 32)
-speedBox.Position = UDim2.new(1, -126, 0, 172)
+speedBox.Position = UDim2.new(1, -126, 0, 212)
 speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
 speedBox.TextColor3 = Color3.fromRGB(255,255,255)
 speedBox.Text = tostring(WalkSpeedValue)
@@ -992,16 +1545,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-RunService:BindToRenderStep("ESPBoxUpdater", Enum.RenderPriority.Camera.Value + 1, function()
-    if ESPBoxEnabled and ESPEnabled then
-        UpdateESPBoxes()
-    else
-        for p,data in pairs(espBoxes) do
-            if data and data.container then data.container.Visible = false end
-        end
-    end
-end)
-
 -- =======================
 -- Minimize behavior
 -- =======================
@@ -1028,7 +1571,24 @@ miniBtn.MouseButton1Click:Connect(function()
     miniBtn.Visible = false
 end)
 
+-- Cleanup Noclip quando personagem morrer/respawn
+LocalPlayer.CharacterRemoving:Connect(function()
+    -- restaurar para evitar ficar noclip para novos chars
+    disableNoclip()
+end)
+
+-- Quando o personagem aparece, re-aplicar Noclip se estava ligado
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if NoclipEnabled then
+        -- pequena espera para partes replicarem
+        task.defer(function()
+            repeat task.wait() until char and char:FindFirstChild("HumanoidRootPart")
+            enableNoclip()
+        end)
+    end
+end)
+
 -- =======================
 -- End of script
 -- =======================
-print("[XIT PAINEL] carregado: painel integrado com Aimbot, ESP, Visual e Otimização")
+print("[XIT PAINEL] carregado: painel integrado com Aimbot, ESP, Visual, Otimização, Noclip e Armas")

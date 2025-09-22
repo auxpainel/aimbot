@@ -64,7 +64,7 @@ end)
 local Window = Painel:CreateWindow({
 	Name = "XIT PAINEL",
 	LoadingTitle = "Carregando Script...",
-	LoadingSubtitle = "Criador: Mlk Mai",
+	LoadingSubtitle = "Criador: Mlk Mau",
 	ConfigurationSaving = {
 		Enabled = true,
 		FolderName = "AimbotFOV",
@@ -140,7 +140,7 @@ ESPTab:CreateToggle({
 	end
 })
 ESPTab:CreateColorPicker({
-	Name = "Color del Highlight",
+	Name = "Cor de Luz",
 	Color = HighlightColor,
 	Callback = function(value)
 		HighlightColor = value
@@ -157,14 +157,14 @@ ESPTab:CreateColorPicker({
 -- Visual Tab
 local VisualTab = Window:CreateTab("Visual", 4483362458)
 VisualTab:CreateToggle({
-	Name = "FOV Arcoíris",
+	Name = "FOV RGB",
 	CurrentValue = false,
 	Callback = function(value)
 		FOVRainbow = value
 	end
 })
 VisualTab:CreateColorPicker({
-	Name = "Color del FOV",
+	Name = "Cor do Fov",
 	Color = FOVColor,
 	Callback = function(value)
 		FOVColor = value
@@ -269,7 +269,7 @@ VisualTab:CreateToggle({
 local OptimTab = Window:CreateTab("Optimización", 4483362458)
 
 OptimTab:CreateButton({
-	Name = "Optimizar FPS (mejora rendimiento)",
+	Name = "Melhorar fps",
 	Callback = function()
 		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 		for _, v in ipairs(workspace:GetDescendants()) do
@@ -288,7 +288,7 @@ OptimTab:CreateButton({
 local FPSUnlockerEnabled = false
 
 OptimTab:CreateToggle({
-	Name = "FPS Unlocker (sin límite de 60 FPS)",
+	Name = "FPS desbloqueado",
 	CurrentValue = false,
 	Callback = function(value)
 		FPSUnlockerEnabled = value
@@ -301,7 +301,7 @@ OptimTab:CreateToggle({
 })
 
 OptimTab:CreateButton({
-    Name = "Optimizar Ping (menos uso de red)",
+    Name = "Otimizar Ping",
     Callback = function()
         -- Desactiva replicación innecesaria visual
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -342,7 +342,7 @@ OptimTab:CreateButton({
 })
 
 OptimTab:CreateButton({
-    Name = "Skybox PvP (estilo brillante)",
+    Name = "Skybox PvP",
     Callback = function()
         local Lighting = game:GetService("Lighting")
         for _, v in ipairs(Lighting:GetChildren()) do

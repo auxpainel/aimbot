@@ -1,4 +1,5 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Substitui a Rayfield pelo seu próprio painel do GitHub
+local Painel = loadstring(game:HttpGet('https://raw.githubusercontent.com/auxpainel/aimbot/main/painel.lua'))()
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")

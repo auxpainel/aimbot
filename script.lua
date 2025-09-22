@@ -267,7 +267,7 @@ end
 btnESP.MouseButton1Click:Connect(function() showTab("ESP") end)
 btnAimbot.MouseButton1Click:Connect(function() showTab("Aimbot") end)
 btnVisual.MouseButton1Click:Connect(function() showTab("Visual") end)
-btnOptim.MouseButton1Click:Connect(function() showTab("Otimização") end)
+btnOptim.MouseButton1Click:Connect(function() showTab("OtimizaÃ§Ã£o") end)
 showTab("ESP")
 
 -- helper to create label + toggle
@@ -803,7 +803,7 @@ local lblWeapons = Instance.new("TextLabel", frameESP)
 lblWeapons.Size = UDim2.new(1, -24, 0, 20)
 lblWeapons.Position = UDim2.new(0, 12, 0, 290)
 lblWeapons.BackgroundTransparency = 1
-lblWeapons.Text = "Armas disponiveis"
+lblWeapons.Text = "Armas disponÃ­veis"
 lblWeapons.TextXAlignment = Enum.TextXAlignment.Left
 lblWeapons.Font = Enum.Font.Gotham
 lblWeapons.TextSize = 14
@@ -1092,7 +1092,7 @@ end)
 -- Aimbot TAB CONTROLS
 -- =======================
 local lblAim, btnAim = createToggle(frameAimbot, "Ativar Aimbot", 18)
-local lblTeam, btnTeam = createToggle(frameAimbot, "Não grudar no time", 58)
+local lblTeam, btnTeam = createToggle(frameAimbot, "NÃ£o grudar no time", 58)
 local lblWallCheck, btnWallCheck = createToggle(frameAimbot, "Checagem de Paredes", 98)
 
 local lblFOV = Instance.new("TextLabel", frameAimbot)
@@ -1142,10 +1142,10 @@ Instance.new("UICorner", btnAimChest).CornerRadius = UDim.new(0,8)
 
 local function updateAimModeButtons()
     if AimMode == "Head" then
-        btnAimHead.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimHead.Text = "Head Ativado"
+        btnAimHead.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimHead.Text = "Head â"
         btnAimChest.BackgroundColor3 = Color3.fromRGB(60,60,60); btnAimChest.Text = "Chest"
     else
-        btnAimChest.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimChest.Text = "Chest Ativado"
+        btnAimChest.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimChest.Text = "Chest â"
         btnAimHead.BackgroundColor3 = Color3.fromRGB(60,60,60); btnAimHead.Text = "Head"
     end
 end

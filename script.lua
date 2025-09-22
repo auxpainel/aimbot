@@ -1,5 +1,5 @@
 -- Substitui a Rayfield pelo seu próprio painel do GitHub
-local Painel = loadstring(game:HttpGet('https://raw.githubusercontent.com/auxpainel/aimbot/refs/heads/main/painel.lua'))()
+local Painel = loadstring(game:HttpGet('https://raw.githubusercontent.com/auxpainel/aimbot/main/painel.lua'))()
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -61,8 +61,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Rayfield GUI
-local Window = Rayfield:CreateWindow({
+local Window = Painel:CreateWindow({
 	Name = "Aimbot FOV",
 	LoadingTitle = "Cargando...",
 	LoadingSubtitle = "By _zxmisaxz_",
@@ -74,7 +73,6 @@ local Window = Rayfield:CreateWindow({
 	KeySystem = false
 })
 
--- Main Tab
 local Tab = Window:CreateTab("Main", 4483362458)
 Tab:CreateToggle({
 	Name = "Activar Aimbot",
@@ -335,7 +333,7 @@ OptimTab:CreateButton({
             end
         end
 
-        Rayfield:Notify({
+        Painel:Notify({
             Title = "Ping Optimizado",
             Content = "Reducción de uso de red aplicada. Puede ayudar en PvP.",
             Duration = 5

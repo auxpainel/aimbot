@@ -272,6 +272,237 @@ espColorBox.Font = Enum.Font.GothamBold
 espColorBox.TextSize = 13
 Instance.new("UICorner", espColorBox).CornerRadius = UDim.new(0,8)
 
+-- ========== ESP BOX (INSERIR AQUI) ==========
+-- Toggle e cor para Box ESP (colar após espColorBox já existente)
+
+local ESPBoxEnabled = false
+local ESPBoxTeamCheck = true
+local ESPBoxColor = HighlightColor -- inicial usa mesmo destaque
+
+-- UI: toggle e cor para box (colocar perto do espColorBox)
+local lblESPBox, btnESPBox = createToggle(frameESP, "Ativar ESP Box", 138)
+local lblESPBoxTeam, btnESPBoxTeam = createToggle(frameESP, "Checagem de time (Box)", 178)
+
+local lblBoxColor = Instance.new("TextLabel", frameESP)
+lblBoxColor.Size = UDim2.new(1, -24, 0, 20)
+lblBoxColor.Position = UDim2.new(0, 12, 0, 218)
+lblBoxColor.BackgroundTransparency = 1
+lblBoxColor.Text = "Cor do Box (R,G,B)"
+lblBoxColor.TextXAlignment = Enum.TextXAlignment.Left
+lblBoxColor.Font = Enum.Font.Gotham
+lblBoxColor.TextSize = 14
+lblBoxColor.TextColor3 = Color3.fromRGB(220,220,220)
+
+local boxColorBox = Instance.new("TextBox", frameESP)
+boxColorBox.Size = UDim2.new(0, 110, 0, 32)
+boxColorBox.Position = UDim2.new(1, -126, 0, 212)
+boxColorBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+boxColorBox.TextColor3 = Color3.fromRGB(255,255,255)
+boxColorBox.Text = tostring(math.floor(ESPBoxColor.R*255))..","..tostring(math.floor(ESPBoxColor.G*255))..","..tostring(math.floor(ESPBoxColor.B*255))
+boxColorBox.Font = Enum.Font.GothamBold
+boxColorBox.TextSize = 13
+Instance.new("UICorner", boxColorBox).CornerRadius = UDim.new(0,8)
+
+-- tabela que guarda frames por jogador
+local espBoxes = {}
+
+local function CreateBoxForPlayer(player)
+    if espBoxes[player] then return end
+    -- container
+    local outer = Instance.new("Frame", drawContainer)
+    outer.Name = "ESPBox_"..player.Name
+    outer.BackgroundTransparency = 1
+    outer.BorderSizePixel = 0
+    outer.ZIndex = 60
+
+    -- border (outline)
+    local outline = Instance.new("Frame", outer)
+    outline.Name = "Outline"
+    outline.AnchorPoint = Vector2.new(0.5, 0.5)
+    outline.BackgroundTransparency = 1 -- we'll simulate border with 4 lines
+    outline.ZIndex = 61
+
+    -- four sides as Frames (top, left, right, bottom)
+    local top = Instance.new("Frame", outline); top.Name = "Top"; top.AnchorPoint = Vector2.new(0,0)
+    local left = Instance.new("Frame", outline); left.Name = "Left"; left.AnchorPoint = Vector2.new(0,0)
+    local right = Instance.new("Frame", outline); right.Name = "Right"; right.AnchorPoint = Vector2.new(0,0)
+    local bottom = Instance.new("Frame", outline); bottom.Name = "Bottom"; bottom.AnchorPoint = Vector2.new(0,0)
+
+    for _, part in pairs({top,left,right,bottom}) do
+        part.BackgroundColor3 = ESPBoxColor
+        part.BackgroundTransparency = 0
+        part.BorderSizePixel = 0
+        part.ZIndex = 62
+    end
+
+    -- name label
+    local nameLabel = Instance.new("TextLabel", outline)
+    nameLabel.Name = "Name"
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = ESPBoxColor
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 14
+    nameLabel.ZIndex = 63
+    nameLabel.Text = player.Name
+
+    espBoxes[player] = {
+        container = outer,
+        top = top, left = left, right = right, bottom = bottom,
+        nameLabel = nameLabel
+    }
+end
+
+local function RemoveBoxForPlayer(player)
+    local t = espBoxes[player]
+    if t then
+        pcall(function() t.container:Destroy() end)
+        espBoxes[player] = nil
+    end
+end
+
+-- Atualiza boxes: calcula projeção 3D->2D e define tamanho e posição do retângulo
+local function UpdateESPBoxes()
+    local cam = Camera
+    local screenSize = cam.ViewportSize
+    for player, data in pairs(espBoxes) do
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then
+            RemoveBoxForPlayer(player)
+        else
+            -- checagem de time
+            if ESPBoxTeamCheck and player.Team == LocalPlayer.Team then
+                data.container.Visible = false
+            else
+                data.container.Visible = ESPEnabled and ESPBoxEnabled
+            end
+
+            if not data.container.Visible then
+                -- se invisível, skip
+            else
+                -- escolha pontos top & bottom: use Head e HumanoidRootPart (ou Torso)
+                local head = char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+                local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
+                if not head or not root then
+                    data.container.Visible = false
+                else
+                    local topPos, topOn = cam:WorldToViewportPoint(head.Position + Vector3.new(0, 0.3, 0))
+                    local bottomPos, bottomOn = cam:WorldToViewportPoint(root.Position - Vector3.new(0, 1.0, 0))
+                    if not topOn or not bottomOn then
+                        data.container.Visible = false
+                    else
+                        data.container.Visible = true
+                        local top2 = Vector2.new(topPos.X, topPos.Y)
+                        local bot2 = Vector2.new(bottomPos.X, bottomPos.Y)
+
+                        local height = math.max(10, (bot2 - top2).Magnitude)
+                        local width = math.clamp(height * 0.45, 10, 400) -- proporção de width
+
+                        local center = (top2 + bot2) / 2
+                        -- define container (usamos Position e Size para o 'outline' agrupado)
+                        data.container.Position = UDim2.new(0, center.X - width/2, 0, center.Y - height/2)
+                        data.container.Size = UDim2.new(0, width, 0, height)
+
+                        -- ajustar bordas (4 frames)
+                        local borderThickness = math.max(1, math.floor(math.clamp(width,1,10) * 0.06))
+                        -- top
+                        data.top.Position = UDim2.new(0, 0, 0, 0)
+                        data.top.Size = UDim2.new(1, 0, 0, borderThickness)
+                        -- bottom
+                        data.bottom.Position = UDim2.new(0, 0, 1, -borderThickness)
+                        data.bottom.Size = UDim2.new(1, 0, 0, borderThickness)
+                        -- left
+                        data.left.Position = UDim2.new(0, 0, 0, 0)
+                        data.left.Size = UDim2.new(0, borderThickness, 1, 0)
+                        -- right
+                        data.right.Position = UDim2.new(1, -borderThickness, 0, 0)
+                        data.right.Size = UDim2.new(0, borderThickness, 1, 0)
+
+                        -- name label top center
+                        data.nameLabel.Position = UDim2.new(0.5, 0, 0, -18)
+                        data.nameLabel.Size = UDim2.new(0, 200, 0, 16)
+                        data.nameLabel.Text = player.Name
+                        data.nameLabel.TextColor3 = ESPBoxColor
+                        data.nameLabel.TextStrokeTransparency = 0.8
+                        data.nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+                        data.nameLabel.AnchorPoint = Vector2.new(0.5, 0)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Manter criação/remoção quando jogadores entrarem/saírem ou reaparecerem
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        if ESPBoxEnabled then
+            CreateBoxForPlayer(p)
+        end
+    end)
+end)
+Players.PlayerRemoving:Connect(function(p)
+    RemoveBoxForPlayer(p)
+end)
+
+-- Toggle handlers (UI buttons)
+btnESPBox.MouseButton1Click:Connect(function()
+    ESPBoxEnabled = not ESPBoxEnabled
+    if ESPBoxEnabled then
+        btnESPBox.Text = "ON"; btnESPBox.BackgroundColor3 = Color3.fromRGB(200,50,50)
+        -- criar para todos os players existentes
+        for _, pl in ipairs(Players:GetPlayers()) do
+            if pl ~= LocalPlayer then
+                CreateBoxForPlayer(pl)
+            end
+        end
+    else
+        btnESPBox.Text = "OFF"; btnESPBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        for p,_ in pairs(espBoxes) do RemoveBoxForPlayer(p) end
+    end
+end)
+
+btnESPBoxTeam.MouseButton1Click:Connect(function()
+    ESPBoxTeamCheck = not ESPBoxTeamCheck
+    if ESPBoxTeamCheck then btnESPBoxTeam.Text = "ON"; btnESPBoxTeam.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    else btnESPBoxTeam.Text = "OFF"; btnESPBoxTeam.BackgroundColor3 = Color3.fromRGB(60,60,60) end
+end)
+
+boxColorBox.FocusLost:Connect(function(enter)
+    local txt = boxColorBox.Text
+    local r,g,b = txt:match("(%d+),%s*(%d+),%s*(%d+)")
+    if r and g and b then
+        local rr = math.clamp(tonumber(r)/255,0,1)
+        local gg = math.clamp(tonumber(g)/255,0,1)
+        local bb = math.clamp(tonumber(b)/255,0,1)
+        ESPBoxColor = Color3.new(rr,gg,bb)
+        -- atualizar cor dos boxes existentes
+        for _, data in pairs(espBoxes) do
+            pcall(function()
+                data.top.BackgroundColor3 = ESPBoxColor
+                data.left.BackgroundColor3 = ESPBoxColor
+                data.right.BackgroundColor3 = ESPBoxColor
+                data.bottom.BackgroundColor3 = ESPBoxColor
+                data.nameLabel.TextColor3 = ESPBoxColor
+            end)
+        end
+    else
+        boxColorBox.Text = tostring(math.floor(ESPBoxColor.R*255)) .. "," .. tostring(math.floor(ESPBoxColor.G*255)) .. "," .. tostring(math.floor(ESPBoxColor.B*255))
+    end
+end)
+
+-- hook no RenderStepped para atualizar as posições
+RunService:BindToRenderStep("ESPBoxUpdater", Enum.RenderPriority.Camera.Value + 1, function()
+    if ESPBoxEnabled and ESPEnabled then
+        UpdateESPBoxes()
+    else
+        -- esconder todos quando desligado
+        for p,data in pairs(espBoxes) do
+            if data and data.container then data.container.Visible = false end
+        end
+    end
+end)
+-- ========== FIM ESP BOX ==========
+
 btnESPOn.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
     if ESPEnabled then
@@ -757,6 +988,16 @@ RunService.RenderStepped:Connect(function()
             local camPos = Camera.CFrame.Position
             local newCF = CFrame.new(camPos, head)
             Camera.CFrame = Camera.CFrame:Lerp(newCF, 0.4)
+        end
+    end
+end)
+
+RunService:BindToRenderStep("ESPBoxUpdater", Enum.RenderPriority.Camera.Value + 1, function()
+    if ESPBoxEnabled and ESPEnabled then
+        UpdateESPBoxes()
+    else
+        for p,data in pairs(espBoxes) do
+            if data and data.container then data.container.Visible = false end
         end
     end
 end)

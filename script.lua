@@ -192,7 +192,7 @@ minimizeBtn.Size = UDim2.new(0, 36, 0, 26)
 minimizeBtn.Position = UDim2.new(1, -48, 0, 10)
 minimizeBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
 minimizeBtn.TextColor3 = Color3.fromRGB(235,235,235)
-minimizeBtn.Text = "â"
+minimizeBtn.Text = "Min _"
 minimizeBtn.Font = Enum.Font.GothamBold
 minimizeBtn.TextSize = 18
 Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0,8)
@@ -232,7 +232,7 @@ end
 local btnESP = makeSideButton("ESP", 12)
 local btnAimbot = makeSideButton("Aimbot", 58)
 local btnVisual = makeSideButton("Visual", 104)
-local btnOptim = makeSideButton("OtimizaÃ§Ã£o", 150)
+local btnOptim = makeSideButton("Otimização", 150)
 
 local frameESP = Instance.new("Frame", content)
 frameESP.Size = UDim2.new(1,0,1,0)
@@ -257,17 +257,17 @@ local function showTab(name)
     frameESP.Visible = (name == "ESP")
     frameAimbot.Visible = (name == "Aimbot")
     frameVisual.Visible = (name == "Visual")
-    frameOptim.Visible = (name == "OtimizaÃ§Ã£o")
+    frameOptim.Visible = (name == "Otimização")
     btnESP.BackgroundColor3 = (name=="ESP") and Color3.fromRGB(80,40,160) or Color3.fromRGB(15,15,15)
     btnAimbot.BackgroundColor3 = (name=="Aimbot") and Color3.fromRGB(80,40,160) or Color3.fromRGB(15,15,15)
     btnVisual.BackgroundColor3 = (name=="Visual") and Color3.fromRGB(80,40,160) or Color3.fromRGB(15,15,15)
-    btnOptim.BackgroundColor3 = (name=="OtimizaÃ§Ã£o") and Color3.fromRGB(80,40,160) or Color3.fromRGB(15,15,15)
+    btnOptim.BackgroundColor3 = (name=="Otimização") and Color3.fromRGB(80,40,160) or Color3.fromRGB(15,15,15)
 end
 
 btnESP.MouseButton1Click:Connect(function() showTab("ESP") end)
 btnAimbot.MouseButton1Click:Connect(function() showTab("Aimbot") end)
 btnVisual.MouseButton1Click:Connect(function() showTab("Visual") end)
-btnOptim.MouseButton1Click:Connect(function() showTab("OtimizaÃ§Ã£o") end)
+btnOptim.MouseButton1Click:Connect(function() showTab("Otimização") end)
 showTab("ESP")
 
 -- helper to create label + toggle
@@ -803,7 +803,7 @@ local lblWeapons = Instance.new("TextLabel", frameESP)
 lblWeapons.Size = UDim2.new(1, -24, 0, 20)
 lblWeapons.Position = UDim2.new(0, 12, 0, 290)
 lblWeapons.BackgroundTransparency = 1
-lblWeapons.Text = "Armas disponÃ­veis"
+lblWeapons.Text = "Armas disponiveis"
 lblWeapons.TextXAlignment = Enum.TextXAlignment.Left
 lblWeapons.Font = Enum.Font.Gotham
 lblWeapons.TextSize = 14
@@ -1142,10 +1142,10 @@ Instance.new("UICorner", btnAimChest).CornerRadius = UDim.new(0,8)
 
 local function updateAimModeButtons()
     if AimMode == "Head" then
-        btnAimHead.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimHead.Text = "Head â"
+        btnAimHead.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimHead.Text = "Head Ativado"
         btnAimChest.BackgroundColor3 = Color3.fromRGB(60,60,60); btnAimChest.Text = "Chest"
     else
-        btnAimChest.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimChest.Text = "Chest â"
+        btnAimChest.BackgroundColor3 = Color3.fromRGB(200,50,50); btnAimChest.Text = "Chest Ativado"
         btnAimHead.BackgroundColor3 = Color3.fromRGB(60,60,60); btnAimHead.Text = "Head"
     end
 end
@@ -1704,4 +1704,4 @@ end)
 -- =======================
 -- End of script
 -- =======================
-print("[XIT PAINEL] carregado: painel integrado com Aimbot, ESP, Visual, OtimizaÃ§Ã£o, Noclip e Armas (AimMode: "..AimMode..")")
+print("[XIT PAINEL] carregado: painel integrado com Aimbot, ESP, Visual, Otimização, Noclip e Armas (AimMode: "..AimMode..")")

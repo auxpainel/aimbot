@@ -62,9 +62,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local Window = Painel:CreateWindow({
-	Name = "Aimbot FOV",
-	LoadingTitle = "Cargando...",
-	LoadingSubtitle = "By _zxmisaxz_",
+	Name = "XIT PAINEL",
+	LoadingTitle = "Carregando Script...",
+	LoadingSubtitle = "Criador: Mlk Mai",
 	ConfigurationSaving = {
 		Enabled = true,
 		FolderName = "AimbotFOV",

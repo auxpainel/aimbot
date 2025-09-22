@@ -1,234 +1,264 @@
 -- base.lua
--- Painel Custom Completo
+local Painel = {}
 
+-- Serviços
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
 
-local Painel = {}
-Painel.__index = Painel
+-- Criar Janela Principal
+function Painel:CreateWindow(config)
+    local Window = Instance.new("ScreenGui")
+    Window.Name = "PainelUI"
+    Window.Parent = game:GetService("CoreGui")
+    Window.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Notificações
-function Painel:Notify(title, description, duration)
-    local ScreenGui = CoreGui:FindFirstChild("PainelNotify") or Instance.new("ScreenGui", CoreGui)
-    ScreenGui.Name = "PainelNotify"
-    ScreenGui.ResetOnSpawn = false
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 250, 0, 80)
-    Frame.Position = UDim2.new(1, -270, 1, -100)
-    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Frame.BorderSizePixel = 0
-    Frame.Parent = ScreenGui
-
-    local UICorner = Instance.new("UICorner", Frame)
-    UICorner.CornerRadius = UDim.new(0, 6)
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -10, 0, 25)
-    Title.Position = UDim2.new(0, 5, 0, 5)
-    Title.BackgroundTransparency = 1
-    Title.TextColor3 = Color3.fromRGB(255,255,255)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 18
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Text = title
-    Title.Parent = Frame
-
-    local Desc = Title:Clone()
-    Desc.Text = description
-    Desc.TextSize = 14
-    Desc.Position = UDim2.new(0, 5, 0, 30)
-    Desc.Parent = Frame
-
-    Frame.BackgroundTransparency = 1
-    TweenService:Create(Frame, TweenInfo.new(0.4), {BackgroundTransparency = 0}):Play()
-
-    task.delay(duration or 3, function()
-        TweenService:Create(Frame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
-        task.wait(0.4)
-        Frame:Destroy()
-    end)
-end
-
--- Criar Janela
-function Painel:CreateWindow(options)
-    local Window = {}
-    Window.__index = Window
-    Window.Tabs = {}
-
-    local ScreenGui = Instance.new("ScreenGui", CoreGui)
-    ScreenGui.Name = "PainelUI"
-    ScreenGui.ResetOnSpawn = false
-
+    -- Frame Principal
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    MainFrame.BorderSizePixel = 0
+    MainFrame.Parent = Window
+    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainFrame.Size = UDim2.new(0, 500, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
     MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.Parent = ScreenGui
+    MainFrame.Draggable = true -- arrastável
 
-    local UICorner = Instance.new("UICorner", MainFrame)
-    UICorner.CornerRadius = UDim.new(0, 8)
+    -- Barra Superior
+    local TopBar = Instance.new("Frame")
+    TopBar.Parent = MainFrame
+    TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    TopBar.Size = UDim2.new(1, 0, 0, 30)
 
     local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, 0, 0, 30)
-    Title.BackgroundColor3 = Color3.fromRGB(35,35,35)
-    Title.Text = options.Name or "Painel"
-    Title.TextColor3 = Color3.new(1,1,1)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 18
-    Title.Parent = MainFrame
+    Title.Parent = TopBar
+    Title.Text = config.Name or "Painel"
+    Title.Size = UDim2.new(1, -40, 1, 0)
+    Title.Position = UDim2.new(0, 10, 0, 0)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 16
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.BackgroundTransparency = 1
 
-    local TabHolder = Instance.new("Frame", MainFrame)
-    TabHolder.Size = UDim2.new(0, 120, 1, -30)
-    TabHolder.Position = UDim2.new(0, 0, 0, 30)
-    TabHolder.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    TabHolder.BorderSizePixel = 0
+    -- Botão Minimizar
+    local Minimize = Instance.new("TextButton")
+    Minimize.Parent = TopBar
+    Minimize.Size = UDim2.new(0, 30, 1, 0)
+    Minimize.Position = UDim2.new(1, -35, 0, 0)
+    Minimize.Text = "_"
+    Minimize.TextSize = 18
+    Minimize.TextColor3 = Color3.new(1,1,1)
+    Minimize.BackgroundTransparency = 1
 
-    local TabContent = Instance.new("Frame", MainFrame)
-    TabContent.Size = UDim2.new(1, -120, 1, -30)
-    TabContent.Position = UDim2.new(0, 120, 0, 30)
-    TabContent.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    TabContent.BorderSizePixel = 0
+    local Body = Instance.new("Frame")
+    Body.Parent = MainFrame
+    Body.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Body.Position = UDim2.new(0, 0, 0, 30)
+    Body.Size = UDim2.new(1, 0, 1, -30)
 
-    function Window:CreateTab(name)
-        local Tab = {}
-        Tab.__index = Tab
+    local TabButtons = Instance.new("Frame")
+    TabButtons.Parent = Body
+    TabButtons.Size = UDim2.new(0, 120, 1, 0)
+    TabButtons.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 
-        local Button = Instance.new("TextButton", TabHolder)
-        Button.Size = UDim2.new(1, 0, 0, 30)
-        Button.Text = name
-        Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
-        Button.TextColor3 = Color3.new(1,1,1)
-        Button.Font = Enum.Font.SourceSans
-        Button.TextSize = 16
+    local Pages = Instance.new("Frame")
+    Pages.Parent = Body
+    Pages.Size = UDim2.new(1, -120, 1, 0)
+    Pages.Position = UDim2.new(0, 120, 0, 0)
+    Pages.BackgroundTransparency = 1
 
-        local Page = Instance.new("ScrollingFrame", TabContent)
-        Page.Visible = false
+    -- Minimizar lógica
+    local minimized = false
+    Minimize.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        Pages.Visible = not minimized
+        TabButtons.Visible = not minimized
+    end)
+
+    -- Criar Tabs
+    function Painel:CreateTab(name)
+        local TabButton = Instance.new("TextButton")
+        TabButton.Parent = TabButtons
+        TabButton.Size = UDim2.new(1, 0, 0, 30)
+        TabButton.Text = name
+        TabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        TabButton.TextColor3 = Color3.new(1,1,1)
+        TabButton.Font = Enum.Font.Gotham
+        TabButton.TextSize = 14
+
+        local Page = Instance.new("ScrollingFrame")
+        Page.Parent = Pages
         Page.Size = UDim2.new(1, 0, 1, 0)
-        Page.CanvasSize = UDim2.new(0,0,0,0)
         Page.BackgroundTransparency = 1
-        Page.BorderSizePixel = 0
-        Page.ScrollBarThickness = 6
+        Page.CanvasSize = UDim2.new(0,0,0,0)
+        Page.Visible = false
+        Page.ScrollBarThickness = 4
 
-        function Tab:Show()
-            for _, child in ipairs(TabContent:GetChildren()) do
-                if child:IsA("ScrollingFrame") then
-                    child.Visible = false
+        local Layout = Instance.new("UIListLayout")
+        Layout.Parent = Page
+        Layout.Padding = UDim.new(0,5)
+        Layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        TabButton.MouseButton1Click:Connect(function()
+            for _, pg in ipairs(Pages:GetChildren()) do
+                if pg:IsA("ScrollingFrame") then
+                    pg.Visible = false
+                end
+            end
+            for _, btn in ipairs(TabButtons:GetChildren()) do
+                if btn:IsA("TextButton") then
+                    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
                 end
             end
             Page.Visible = true
-        end
-
-        Button.MouseButton1Click:Connect(function()
-            Tab:Show()
+            TabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         end)
 
-        -- Elementos
-        function Tab:CreateToggle(text, callback)
-            local Toggle = Instance.new("TextButton", Page)
-            Toggle.Size = UDim2.new(1, -10, 0, 30)
-            Toggle.Position = UDim2.new(0, 5, 0, #Page:GetChildren()*35)
-            Toggle.BackgroundColor3 = Color3.fromRGB(50,50,50)
-            Toggle.Text = "[OFF] " .. text
-            Toggle.TextColor3 = Color3.new(1,1,1)
-            Toggle.Font = Enum.Font.SourceSans
-            Toggle.TextSize = 16
+        if #Pages:GetChildren() == 1 then
+            Page.Visible = true
+            TabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        end
+
+        local Elements = {}
+
+        -- Toggle
+        function Elements:CreateToggle(text, callback)
+            local Button = Instance.new("TextButton")
+            Button.Parent = Page
+            Button.Size = UDim2.new(1, -10, 0, 30)
+            Button.Text = "[ ] "..text
+            Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            Button.TextColor3 = Color3.new(1,1,1)
+            Button.Font = Enum.Font.Gotham
+            Button.TextSize = 14
 
             local state = false
-            Toggle.MouseButton1Click:Connect(function()
+            Button.MouseButton1Click:Connect(function()
                 state = not state
-                Toggle.Text = (state and "[ON] " or "[OFF] ") .. text
-                pcall(callback, state)
+                Button.Text = (state and "[✔] " or "[ ] ")..text
+                callback(state)
             end)
         end
 
-        function Tab:CreateButton(text, callback)
-            local Btn = Instance.new("TextButton", Page)
+        -- Button
+        function Elements:CreateButton(text, callback)
+            local Btn = Instance.new("TextButton")
+            Btn.Parent = Page
             Btn.Size = UDim2.new(1, -10, 0, 30)
-            Btn.Position = UDim2.new(0, 5, 0, #Page:GetChildren()*35)
-            Btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
             Btn.Text = text
+            Btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
             Btn.TextColor3 = Color3.new(1,1,1)
-            Btn.Font = Enum.Font.SourceSans
-            Btn.TextSize = 16
+            Btn.Font = Enum.Font.GothamBold
+            Btn.TextSize = 14
             Btn.MouseButton1Click:Connect(callback)
         end
 
-        function Tab:CreateSlider(text, min, max, callback)
-            local SliderFrame = Instance.new("Frame", Page)
-            SliderFrame.Size = UDim2.new(1, -10, 0, 40)
-            SliderFrame.Position = UDim2.new(0, 5, 0, #Page:GetChildren()*45)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(45,45,45)
+        -- Slider
+        function Elements:CreateSlider(text, min, max, callback)
+            local Frame = Instance.new("Frame")
+            Frame.Parent = Page
+            Frame.Size = UDim2.new(1, -10, 0, 40)
+            Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
-            local Label = Instance.new("TextLabel", SliderFrame)
+            local Label = Instance.new("TextLabel")
+            Label.Parent = Frame
             Label.Size = UDim2.new(1, 0, 0, 20)
-            Label.BackgroundTransparency = 1
-            Label.Text = text .. ": " .. min
+            Label.Text = text..": "..min
             Label.TextColor3 = Color3.new(1,1,1)
-            Label.Font = Enum.Font.SourceSans
+            Label.Font = Enum.Font.Gotham
             Label.TextSize = 14
+            Label.BackgroundTransparency = 1
 
-            local Slider = Instance.new("TextButton", SliderFrame)
-            Slider.Size = UDim2.new(1, 0, 0, 20)
-            Slider.Position = UDim2.new(0, 0, 0, 20)
-            Slider.BackgroundColor3 = Color3.fromRGB(70,70,70)
+            local Slider = Instance.new("TextButton")
+            Slider.Parent = Frame
+            Slider.Size = UDim2.new(1, -10, 0, 10)
+            Slider.Position = UDim2.new(0, 5, 0, 25)
+            Slider.BackgroundColor3 = Color3.fromRGB(80,80,80)
             Slider.Text = ""
 
-            local dragging = false
-            local value = min
-            local function update(input)
-                local pos = math.clamp((input.Position.X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
-                value = math.floor(min + (max - min) * pos)
-                Label.Text = text .. ": " .. value
-                pcall(callback, value)
-            end
+            local Fill = Instance.new("Frame")
+            Fill.Parent = Slider
+            Fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+            Fill.Size = UDim2.new(0, 0, 1, 0)
 
-            Slider.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    dragging = true
-                end
+            local dragging = false
+            Slider.MouseButton1Down:Connect(function()
+                dragging = true
             end)
-            Slider.InputEnded:Connect(function(input)
+            UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     dragging = false
                 end
             end)
-            UserInputService.InputChanged:Connect(function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    update(input)
+            RunService = game:GetService("RunService")
+            RunService.RenderStepped:Connect(function()
+                if dragging then
+                    local pos = math.clamp((UserInputService:GetMouseLocation().X - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)
+                    Fill.Size = UDim2.new(pos, 0, 1, 0)
+                    local value = math.floor(min + (max-min) * pos)
+                    Label.Text = text..": "..value
+                    callback(value)
                 end
             end)
         end
 
-        function Tab:CreateColorPicker(text, callback)
-            local Btn = Instance.new("TextButton", Page)
+        -- ColorPicker
+        function Elements:CreateColorPicker(text, default, callback)
+            local Btn = Instance.new("TextButton")
+            Btn.Parent = Page
             Btn.Size = UDim2.new(1, -10, 0, 30)
-            Btn.Position = UDim2.new(0, 5, 0, #Page:GetChildren()*35)
-            Btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-            Btn.Text = text .. " (abrir seletor)"
+            Btn.Text = text
+            Btn.BackgroundColor3 = default
             Btn.TextColor3 = Color3.new(1,1,1)
-            Btn.Font = Enum.Font.SourceSans
-            Btn.TextSize = 16
+            Btn.Font = Enum.Font.Gotham
+            Btn.TextSize = 14
 
             Btn.MouseButton1Click:Connect(function()
-                local ColorPicker = Instance.new("Color3Value")
-                ColorPicker.Changed:Connect(function(newColor)
-                    pcall(callback, newColor)
-                end)
-                ColorPicker.Value = Color3.fromRGB(255,255,255) -- valor inicial
-                callback(ColorPicker.Value)
+                local color = Color3.fromHSV(math.random(), 1, 1)
+                Btn.BackgroundColor3 = color
+                callback(color)
             end)
         end
 
-        Tab:Show()
-        return Tab
+        return Elements
     end
 
-    return Window
+    -- Notify
+    function Painel:Notify(title, text, time)
+        local NotifyFrame = Instance.new("Frame")
+        NotifyFrame.Parent = Window
+        NotifyFrame.Size = UDim2.new(0, 200, 0, 60)
+        NotifyFrame.Position = UDim2.new(1, -210, 1, -70)
+        NotifyFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+
+        local Title = Instance.new("TextLabel")
+        Title.Parent = NotifyFrame
+        Title.Size = UDim2.new(1, 0, 0, 20)
+        Title.Text = title
+        Title.Font = Enum.Font.GothamBold
+        Title.TextSize = 14
+        Title.TextColor3 = Color3.new(1,1,1)
+        Title.BackgroundTransparency = 1
+
+        local Msg = Instance.new("TextLabel")
+        Msg.Parent = NotifyFrame
+        Msg.Size = UDim2.new(1, -10, 0, 40)
+        Msg.Position = UDim2.new(0, 5, 0, 20)
+        Msg.Text = text
+        Msg.TextWrapped = true
+        Msg.Font = Enum.Font.Gotham
+        Msg.TextSize = 12
+        Msg.TextColor3 = Color3.new(1,1,1)
+        Msg.BackgroundTransparency = 1
+
+        TweenService:Create(NotifyFrame, TweenInfo.new(0.5), {Position = UDim2.new(1, -210, 1, -140)}):Play()
+        task.delay(time or 3, function()
+            TweenService:Create(NotifyFrame, TweenInfo.new(0.5), {Position = UDim2.new(1, 0, 1, 0)}):Play()
+            task.delay(0.5, function()
+                NotifyFrame:Destroy()
+            end)
+        end)
+    end
+
+    return Painel
 end
 
 return Painel

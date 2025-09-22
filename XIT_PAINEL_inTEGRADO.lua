@@ -396,6 +396,9 @@ lblFOVColor.Font = Enum.Font.Gotham
 lblFOVColor.TextSize = 14
 lblFOVColor.TextColor3 = Color3.fromRGB(220,220,220)
 
+local SlowMotionEnabled = false
+local PvPSkyEnabled = false
+
 local fovColorBox = Instance.new("TextBox", frameVisual)
 fovColorBox.Size = UDim2.new(0, 110, 0, 32)
 fovColorBox.Position = UDim2.new(1, -126, 0, 52)
@@ -498,6 +501,47 @@ btnSkyMode.MouseButton1Click:Connect(function()
         if OriginalSky then OriginalSky.Enabled = true end
         if StarsGui then StarsGui:Destroy(); StarsGui = nil end
     end
+end)
+
+-- For Visual tab
+
+-- WalkSpeed Control (aba Visual)
+local WalkSpeedValue = 16
+
+local lblSpeed = Instance.new("TextLabel", frameVisual)
+lblSpeed.Size = UDim2.new(1, -24, 0, 20)
+lblSpeed.Position = UDim2.new(0, 12, 0, 178)
+lblSpeed.BackgroundTransparency = 1
+lblSpeed.Text = "Velocidade (WalkSpeed)"
+lblSpeed.TextXAlignment = Enum.TextXAlignment.Left
+lblSpeed.Font = Enum.Font.Gotham
+lblSpeed.TextSize = 14
+lblSpeed.TextColor3 = Color3.fromRGB(220,220,220)
+
+local speedBox = Instance.new("TextBox", frameVisual)
+speedBox.Size = UDim2.new(0, 110, 0, 32)
+speedBox.Position = UDim2.new(1, -126, 0, 172)
+speedBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+speedBox.TextColor3 = Color3.fromRGB(255,255,255)
+speedBox.Text = tostring(WalkSpeedValue)
+speedBox.Font = Enum.Font.GothamBold
+speedBox.TextSize = 13
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0,8)
+
+speedBox.FocusLost:Connect(function()
+    local val = tonumber(speedBox.Text)
+    if val and val > 0 then
+        WalkSpeedValue = val
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = WalkSpeedValue
+        end
+    else
+        speedBox.Text = tostring(WalkSpeedValue)
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").WalkSpeed = WalkSpeedValue
 end)
 
 -- =======================

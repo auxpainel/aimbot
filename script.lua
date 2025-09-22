@@ -75,7 +75,7 @@ local Window = Painel:CreateWindow({
 
 local Tab = Window:CreateTab("Main", 4483362458)
 Tab:CreateToggle({
-	Name = "Activar Aimbot",
+	Name = "Ativar Aimbot",
 	CurrentValue = false,
 	Callback = function(value)
 		AimbotEnabled = value
@@ -83,21 +83,21 @@ Tab:CreateToggle({
 	end
 })
 Tab:CreateToggle({
-	Name = "Team Check",
+	Name = "Não grudar no time",
 	CurrentValue = true,
 	Callback = function(value)
 		TeamCheck = value
 	end
 })
 Tab:CreateToggle({
-	Name = "Wall Check",
+	Name = "Checagem de Paredes",
 	CurrentValue = true,
 	Callback = function(value)
 		WallCheck = value
 	end
 })
 Tab:CreateSlider({
-	Name = "Tamaño del FOV",
+	Name = "Tamanho FOV",
 	Range = {50, 300},
 	Increment = 5,
 	CurrentValue = 100,
@@ -110,7 +110,7 @@ Tab:CreateSlider({
 -- ESP Tab
 local ESPTab = Window:CreateTab("ESP", 4483362458)
 ESPTab:CreateToggle({
-	Name = "Activar Highlight",
+	Name = "Ativar personagem",
 	CurrentValue = false,
 	Callback = function(value)
 		ESPEnabled = value
@@ -125,7 +125,7 @@ ESPTab:CreateToggle({
 	end
 })
 ESPTab:CreateToggle({
-	Name = "Team Check Highlight",
+	Name = "Checagem de luzes no time",
 	CurrentValue = true,
 	Callback = function(value)
 		ESPTeamCheck = value

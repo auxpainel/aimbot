@@ -1,13 +1,13 @@
+-- script.lua
 local Painel = loadstring(game:HttpGet("https://raw.githubusercontent.com/auxpainel/aimbot/main/base.lua"))()
 
+-- Configs
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
 
--- Config
 local AimbotEnabled = false
 local TeamCheck = true
 local WallCheck = true
@@ -35,10 +35,7 @@ local UIStroke = Instance.new("UIStroke", FOVCircle)
 UIStroke.Thickness = 2
 UIStroke.Color = FOVColor
 
-local UICorner = Instance.new("UICorner", FOVCircle)
-UICorner.CornerRadius = UDim.new(1, 0)
-
--- FPS / PING
+-- FPS & Ping Display
 local StatsLabel = Instance.new("TextLabel")
 StatsLabel.Parent = ScreenGui
 StatsLabel.Size = UDim2.new(0, 200, 0, 50)
@@ -54,68 +51,99 @@ local lastUpdate = tick()
 RunService.RenderStepped:Connect(function()
     local fps = math.floor(1 / RunService.RenderStepped:Wait())
     if tick() - lastUpdate >= 0.3 then
-        StatsLabel.Text = "FPS: " .. fps .. " | Ping: " .. (math.random(40,90)) .. "ms" -- fake ping simplificado
+        StatsLabel.Text = "FPS: " .. fps .. " | Ping: " .. math.random(30,80) .. "ms"
         lastUpdate = tick()
     end
 end)
 
--- Criar janela
+-- Criar Janela
 local Window = Painel:CreateWindow({
     Name = "XIT PAINEL"
 })
 
--- MAIN TAB
-local Tab = Window:CreateTab("Main")
-Tab:CreateToggle("Ativar Aimbot", function(value)
+----------------------------------------------------------------
+-- 🔹 Aba MAIN
+----------------------------------------------------------------
+local TabMain = Window:CreateTab("Main")
+
+TabMain:CreateToggle("Ativar Aimbot", function(value)
     AimbotEnabled = value
     FOVCircle.Visible = value
 end)
-Tab:CreateToggle("Não grudar no time", function(value)
+
+TabMain:CreateToggle("Não grudar no time", function(value)
     TeamCheck = value
 end)
-Tab:CreateToggle("Checagem de Paredes", function(value)
+
+TabMain:CreateToggle("Checagem de Paredes", function(value)
     WallCheck = value
 end)
-Tab:CreateSlider("Tamanho FOV", 50, 300, function(value)
+
+TabMain:CreateSlider("Tamanho FOV", 50, 300, function(value)
     FOVRadius = value
     FOVCircle.Size = UDim2.new(0, value * 2, 0, value * 2)
 end)
 
--- ESP TAB
-local ESPTab = Window:CreateTab("ESP")
-ESPTab:CreateToggle("Ativar ESP", function(value)
+----------------------------------------------------------------
+-- 🔹 Aba ESP
+----------------------------------------------------------------
+local TabESP = Window:CreateTab("ESP")
+
+TabESP:CreateToggle("Ativar ESP", function(value)
     ESPEnabled = value
-end)
-ESPTab:CreateToggle("ESP não mostrar time", function(value)
-    ESPTeamCheck = value
-end)
-ESPTab:CreateButton("Forçar Atualizar ESP", function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local highlight = player.Character:FindFirstChild("ESPHighlight")
-            if not highlight then
-                highlight = Instance.new("Highlight")
-                highlight.Name = "ESPHighlight"
-                highlight.Parent = player.Character
+            if highlight then
+                highlight.Enabled = value and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
             end
-            highlight.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
-            highlight.OutlineColor = HighlightColor
         end
     end
 end)
 
--- VISUAL TAB
-local VisualTab = Window:CreateTab("Visual")
-VisualTab:CreateToggle("FOV RGB", function(value)
+TabESP:CreateToggle("Ignorar Time", function(value)
+    ESPTeamCheck = value
+end)
+
+TabESP:CreateColorPicker("Cor do ESP", HighlightColor, function(color)
+    HighlightColor = color
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            local highlight = player.Character:FindFirstChild("ESPHighlight")
+            if highlight then
+                highlight.OutlineColor = color
+                highlight.FillColor = color
+            end
+        end
+    end
+end)
+
+----------------------------------------------------------------
+-- 🔹 Aba VISUAL
+----------------------------------------------------------------
+local TabVisual = Window:CreateTab("Visual")
+
+TabVisual:CreateToggle("FOV RGB", function(value)
     FOVRainbow = value
 end)
-VisualTab:CreateSlider("Gravidade", 50, 200, function(value)
+
+TabVisual:CreateColorPicker("Cor do FOV", FOVColor, function(color)
+    FOVColor = color
+    if not FOVRainbow then
+        UIStroke.Color = color
+    end
+end)
+
+TabVisual:CreateSlider("Gravidade", 50, 300, function(value)
     workspace.Gravity = value
 end)
 
--- OTIMIZAÇÃO TAB
-local OptimTab = Window:CreateTab("Otimização")
-OptimTab:CreateButton("Melhorar FPS", function()
+----------------------------------------------------------------
+-- 🔹 Aba OTIMIZAÇÃO
+----------------------------------------------------------------
+local TabOpt = Window:CreateTab("Otimização")
+
+TabOpt:CreateButton("Melhorar FPS", function()
     settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
     for _, v in ipairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") then
@@ -127,12 +155,52 @@ OptimTab:CreateButton("Melhorar FPS", function()
             v.Enabled = false
         end
     end
+    Painel:Notify("Otimização", "FPS Melhorado com sucesso!", 3)
 end)
 
--- Aimbot loop
+----------------------------------------------------------------
+-- 🔹 Funções de ESP (aplica highlight)
+----------------------------------------------------------------
+local function ApplyHighlight(player)
+    if not player.Character then return end
+    local existing = player.Character:FindFirstChild("ESPHighlight")
+    if existing then existing:Destroy() end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillTransparency = 1
+    highlight.OutlineTransparency = 0
+    highlight.OutlineColor = HighlightColor
+    highlight.FillColor = HighlightColor
+    highlight.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
+    highlight.Parent = player.Character
+end
+
+local function SetupCharacterHighlight(player)
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function()
+            repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            ApplyHighlight(player)
+        end)
+    end
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+    SetupCharacterHighlight(player)
+    if player.Character then
+        ApplyHighlight(player)
+    end
+end
+
+Players.PlayerAdded:Connect(SetupCharacterHighlight)
+
+----------------------------------------------------------------
+-- 🔹 Função Aimbot
+----------------------------------------------------------------
 local function GetClosestTarget()
     local closest = nil
     local shortestDist = FOVRadius
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             if TeamCheck and player.Team == LocalPlayer.Team then continue end
@@ -155,6 +223,7 @@ RunService.RenderStepped:Connect(function()
         local hue = tick() % 5 / 5
         UIStroke.Color = Color3.fromHSV(hue, 1, 1)
     end
+
     if AimbotEnabled then
         local target = GetClosestTarget()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then

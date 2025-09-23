@@ -63,14 +63,14 @@ end
 -- State variables (from script.lua)
 -- =======================
 local AimbotEnabled = false
-local TeamCheck = true
-local WallCheck = true
+local TeamCheck = false
+local WallCheck = false
 local FOVRadius = 100
 local ESPEnabled = false
-local ESPTeamCheck = true
-local HighlightColor = Color3.fromRGB(255, 0, 0)
+local ESPTeamCheck = false
+local HighlightColor = Color3.fromRGB(255, 255, 255)
 local FOVRainbow = false
-local FOVColor = Color3.fromRGB(0, 255, 0)
+local FOVColor = Color3.fromRGB(255, 255, 255)
 local FPSUnlockerEnabled = false
 
 -- For Visual tab
@@ -322,7 +322,7 @@ Instance.new("UICorner", espColorBox).CornerRadius = UDim.new(0,8)
 
 -- ========== ESP BOX (ATUALIZADO) ==========
 local ESPBoxEnabled = false
-local ESPBoxTeamCheck = true
+local ESPBoxTeamCheck = false
 local ESPBoxColor = HighlightColor -- inicial
 
 local lblESPBox, btnESPBox = createToggle(frameESP, "Ativar ESP Box", 138)

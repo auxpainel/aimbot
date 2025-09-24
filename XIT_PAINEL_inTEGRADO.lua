@@ -1425,22 +1425,23 @@ local function addESP(plr)
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
                 box.Color = parseColor(boxColorBox.Text, box.Color)
-                box.Visible = (btnESPBox.Text == "ON") and ESPEnabled and (not btnESPBoxTeam or btnESPBoxTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
+                box.Visible = (btnESPBox.Text == "ON") and (not btnESPBoxTeam or btnESPBoxTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
 
                 line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
                 line.To = Vector2.new(pos.X, pos.Y)
                 line.Color = parseColor(lineColorBox.Text, line.Color)
-                line.Visible = (btnLineToggle.Text == "ON") and ESPEnabled and (not btnLineTeam or btnLineTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
+                line.Visible = (btnLineToggle.Text == "ON") and (not btnLineTeam or btnLineTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
 
                 name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
-                name.Color = parseColor(nameColorBox.Text, name.Color)
-                name.Visible = (btnNameToggle.Text == "ON") and ESPEnabled and (not btnNameTeam or btnNameTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
+name.Text = plr.Name
+name.Color = parseColor(nameColorBox.Text, name.Color)
+name.Visible = (btnNameToggle.Text == "ON") and (not btnNameTeam or btnNameTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
 
                 local dist = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) and math.floor((LocalPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude) or 0
                 distText.Text = tostring(dist).."m"
                 distText.Position = Vector2.new(pos.X, pos.Y + height/2 + 2)
                 -- USE THE NEW DISTANCE TOGGLE HERE:
-                distText.Visible = (btnDistToggle.Text == "ON") and ESPEnabled and (not btnDistTeam or btnDistTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
+                distText.Visible = (btnDistToggle.Text == "ON") and (not btnDistTeam or btnDistTeam.Text ~= "ON" or plr.Team ~= LocalPlayer.Team)
             else
                 for _, obj in pairs(espObjects[plr]) do obj.Visible = false end
             end

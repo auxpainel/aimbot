@@ -1389,7 +1389,7 @@ local function addESP(plr)
 
     local name = Drawing.new("Text")
     name.Color = parseColor(nameColorBox.Text, Color3.fromRGB(255,0,0))
-    name.Size = 13
+    name.Size = 7
     name.Center = true
     name.Outline = true
     name.Text = plr.Name
@@ -1398,7 +1398,7 @@ local function addESP(plr)
 
     local distText = Drawing.new("Text")
     distText.Color = Color3.fromRGB(255,255,255)
-    distText.Size = 12
+    distText.Size = 8
     distText.Center = true
     distText.Outline = true
     distText.Visible = false
@@ -1419,8 +1419,8 @@ local function addESP(plr)
                 local scale = humanoid and humanoid.HipHeight + 2 or 1
                 local top = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, scale, 0))
                 local bottom = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 2, 0))
-                local height = math.abs(top.Y - bottom.Y)
-                local width = math.clamp(height * 0.45, 10, 400)
+                local height = math.abs(top.Y - bottom.Y) * 1.5
+local width = math.clamp(height * 0.45, 10, 400)
 
                 box.Size = Vector2.new(width, height)
                 box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)

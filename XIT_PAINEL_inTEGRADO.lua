@@ -1235,35 +1235,137 @@ btnSkyboxOptim.MouseButton1Click:Connect(function()
     Lighting.TimeOfDay = "18:00:00"
 end)
 
--- Highlight utilities
+-- ======= Substitua SetupCharacterHighlight, ApplyHighlight/uso inicial e os handlers de toggle =======
+
+-- Highlight utilities (melhorada)
 local function ApplyHighlight(player)
-    if not player.Character then return end
+    if not player or not player.Character or not player.Character.Parent then return end
+    -- remove existings
     local existing = player.Character:FindFirstChild("ESPHighlight")
     if existing then existing:Destroy() end
+
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESPHighlight"
+    -- mostrar só contorno por padrão (você pode ajustar)
     highlight.FillTransparency = 1
     highlight.OutlineTransparency = 0
     pcall(function() highlight.OutlineColor = HighlightColor end)
     pcall(function() highlight.FillColor = HighlightColor end)
     highlight.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
+    -- parent para o modelo (character) — funcionará tanto para R6 quanto R15
     highlight.Parent = player.Character
 end
 
+-- espera até o character ter alguma parte util (HumanoidRootPart / UpperTorso / Torso)
+local function WaitForCharacterParts(char)
+    if not char then return end
+    repeat task.wait() until (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso"))
+end
+
 local function SetupCharacterHighlight(player)
-    if player ~= LocalPlayer then
-        player.CharacterAdded:Connect(function()
-            repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            ApplyHighlight(player)
+    -- cria listener para mudanças de time para atualizar o enabled do highlight
+    player:GetPropertyChangedSignal("Team"):Connect(function()
+        if player.Character then
+            local h = player.Character:FindFirstChild("ESPHighlight")
+            if h then
+                h.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
+            end
+        end
+    end)
+
+    -- quando o character for adicionado, esperar pelas partes e aplicar highlight
+    player.CharacterAdded:Connect(function(char)
+        -- spawn/async para não bloquear
+        task.spawn(function()
+            WaitForCharacterParts(char)
+            -- aplicar highlight assim que character estiver pronto
+            pcall(function() ApplyHighlight(player) end)
+        end)
+    end)
+
+    -- se o player já tem character (script iniciou depois), garantir aplicação
+    if player.Character then
+        task.spawn(function()
+            WaitForCharacterParts(player.Character)
+            pcall(function() ApplyHighlight(player) end)
         end)
     end
 end
 
+-- substituir inicialização (aplicar SetupCharacterHighlight para todos jogadores existentes)
 for _, player in ipairs(Players:GetPlayers()) do
     SetupCharacterHighlight(player)
-    if player.Character then ApplyHighlight(player) end
 end
-Players.PlayerAdded:Connect(function(player) SetupCharacterHighlight(player) end)
+Players.PlayerAdded:Connect(function(player)
+    SetupCharacterHighlight(player)
+end)
+
+-- Atualizar os toggles para criar highlight quando ligar ESP (caso ainda não exista)
+btnESPOn.MouseButton1Click:Connect(function()
+    ESPEnabled = not ESPEnabled
+    if ESPEnabled then
+        btnESPOn.Text = "ON"; btnESPOn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+        FOVFrame.Visible = AimbotEnabled
+    else
+        btnESPOn.Text = "OFF"; btnESPOn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local highlight = player.Character:FindFirstChild("ESPHighlight")
+            if not highlight and ESPEnabled then
+                -- tentar criar highlight (vai esperar internamente se necessário via SetupCharacterHighlight flow)
+                pcall(function() ApplyHighlight(player) end)
+                highlight = player.Character and player.Character:FindFirstChild("ESPHighlight")
+            end
+            if highlight then
+                highlight.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
+            end
+        end
+    end
+end)
+
+btnESPTeam.MouseButton1Click:Connect(function()
+    ESPTeamCheck = not ESPTeamCheck
+    if ESPTeamCheck then btnESPTeam.Text = "ON"; btnESPTeam.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    else btnESPTeam.Text = "OFF"; btnESPTeam.BackgroundColor3 = Color3.fromRGB(60,60,60) end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local highlight = player.Character:FindFirstChild("ESPHighlight")
+            if not highlight and ESPEnabled then
+                pcall(function() ApplyHighlight(player) end)
+                highlight = player.Character and player.Character:FindFirstChild("ESPHighlight")
+            end
+            if highlight then
+                highlight.Enabled = ESPEnabled and (not ESPTeamCheck or player.Team ~= LocalPlayer.Team)
+            end
+        end
+    end
+end)
+
+-- também, quando a cor do highlight for alterada pela caixa de texto, atualizar todos (já existia, mas reforço para cobrir casos)
+espColorBox.FocusLost:Connect(function(enter)
+    local txt = espColorBox.Text
+    local r,g,b = txt:match("(%d+),%s*(%d+),%s*(%d+)")
+    if r and g and b then
+        local rr = math.clamp(tonumber(r)/255,0,1)
+        local gg = math.clamp(tonumber(g)/255,0,1)
+        local bb = math.clamp(tonumber(b)/255,0,1)
+        HighlightColor = Color3.new(rr,gg,bb)
+        for _, player in ipairs(Players:GetPlayers()) do
+            local highlight = player.Character and player.Character:FindFirstChild("ESPHighlight")
+            if highlight then
+                pcall(function()
+                    highlight.OutlineColor = HighlightColor
+                    highlight.FillColor = HighlightColor
+                end)
+            end
+        end
+    else
+        espColorBox.Text = tostring(math.floor(HighlightColor.R*255)) .. "," .. tostring(math.floor(HighlightColor.G*255)) .. "," .. tostring(math.floor(HighlightColor.B*255))
+    end
+end)
 
 -- Aimbot logic
 local function GetClosestTarget()
